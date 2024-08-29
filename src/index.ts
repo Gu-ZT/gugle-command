@@ -37,11 +37,11 @@ class CommandNode {
     return this;
   }
 
-  public parse(nodes: string[], ...args: any): void {
+  public parse(nodes: string[], ...args: any): boolean {
     if (nodes.length === 0) {
       if (this.exec) {
         this.exec(...args);
-        return;
+        return true;
       } else {
         throw new Error('Invalid command');
       }
@@ -54,20 +54,19 @@ class CommandNode {
     } else {
       for (let child of this.children) {
         if (child instanceof LiteralCommandNode && child.toString() === nodeStr) {
-          child.parse(nodes, ...args);
-          return;
+          return child.parse(nodes, ...args);
         }
         if (child instanceof ArgumentCommandNode) {
           try {
             args.push(child.decode(nodeStr));
-            child.parse(nodes, args);
+            return child.parse(nodes, ...args);
           } catch (e) {
             throw e;
           }
-          return;
         }
       }
     }
+    return false;
   }
 }
 
@@ -105,14 +104,19 @@ class ArgumentCommandNode<T> extends CommandNode {
 
 export class CommandManager {
   public readonly prefix: string;
-  public readonly root: CommandNode = new CommandNode();
+  public readonly roots: Map<string, CommandNode> = new Map<string, CommandNode>();
 
   public constructor(prefix: string = '/') {
     this.prefix = prefix;
   }
 
-  public register(node: CommandNode): void {
-    this.root.then(node);
+  public register(namespace: string = 'gugle-command', node: CommandNode): void {
+    if (!this.roots.has(namespace)) this.roots.set(namespace, new CommandNode());
+    this.roots.get(namespace)!.then(node);
+  }
+
+  public remove(namespace: string) {
+    this.roots.delete(namespace);
   }
 
   public literal(name: string): LiteralCommandNode {
@@ -129,7 +133,9 @@ export class CommandManager {
     }
     commands = commands.substring(this.prefix.length);
     const nodes = commands.split(' ');
-    console.log(nodes);
-    this.root.parse(nodes.reverse());
+    for (let key in this.roots) {
+      const root = this.roots.get(key);
+      if (root!.parse(nodes.reverse())) break;
+    }
   }
 }
