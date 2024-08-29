@@ -76,7 +76,7 @@ var CommandNode = /** @class */ (function () {
         if (nodes.length === 0) {
             if (this.exec) {
                 this.exec.apply(this, args);
-                return;
+                return true;
             }
             else {
                 throw new Error('Invalid command');
@@ -93,21 +93,20 @@ var CommandNode = /** @class */ (function () {
             for (var _a = 0, _b = this.children; _a < _b.length; _a++) {
                 var child = _b[_a];
                 if (child instanceof LiteralCommandNode && child.toString() === nodeStr) {
-                    child.parse.apply(child, __spreadArray([nodes], args, false));
-                    return;
+                    return child.parse.apply(child, __spreadArray([nodes], args, false));
                 }
                 if (child instanceof ArgumentCommandNode) {
                     try {
                         args.push(child.decode(nodeStr));
-                        child.parse(nodes, args);
+                        return child.parse.apply(child, __spreadArray([nodes], args, false));
                     }
                     catch (e) {
                         throw e;
                     }
-                    return;
                 }
             }
         }
+        return false;
     };
     return CommandNode;
 }());
@@ -142,11 +141,17 @@ var ArgumentCommandNode = /** @class */ (function (_super) {
 var CommandManager = /** @class */ (function () {
     function CommandManager(prefix) {
         if (prefix === void 0) { prefix = '/'; }
-        this.root = new CommandNode();
+        this.roots = new Map();
         this.prefix = prefix;
     }
-    CommandManager.prototype.register = function (node) {
-        this.root.then(node);
+    CommandManager.prototype.register = function (namespace, node) {
+        if (namespace === void 0) { namespace = 'gugle-command'; }
+        if (!this.roots.has(namespace))
+            this.roots.set(namespace, new CommandNode());
+        this.roots.get(namespace).then(node);
+    };
+    CommandManager.prototype.remove = function (namespace) {
+        this.roots.delete(namespace);
     };
     CommandManager.prototype.literal = function (name) {
         return new LiteralCommandNode(name);
@@ -160,8 +165,11 @@ var CommandManager = /** @class */ (function () {
         }
         commands = commands.substring(this.prefix.length);
         var nodes = commands.split(' ');
-        console.log(nodes);
-        this.root.parse(nodes.reverse());
+        for (var key in this.roots) {
+            var root = this.roots.get(key);
+            if (root.parse(nodes.reverse()))
+                break;
+        }
     };
     return CommandManager;
 }());

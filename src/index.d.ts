@@ -9,7 +9,7 @@ declare class CommandNode {
     constructor();
     then(node: CommandNode): CommandNode;
     execute(exec: (...args: any) => void): CommandNode;
-    parse(nodes: string[], ...args: any): void;
+    parse(nodes: string[], ...args: any): boolean;
 }
 declare class LiteralCommandNode extends CommandNode {
     private readonly name;
@@ -25,9 +25,10 @@ declare class ArgumentCommandNode<T> extends CommandNode {
 }
 export declare class CommandManager {
     readonly prefix: string;
-    readonly root: CommandNode;
+    readonly roots: Map<string, CommandNode>;
     constructor(prefix?: string);
-    register(node: CommandNode): void;
+    register(namespace: string, node: CommandNode): void;
+    remove(namespace: string): void;
     literal(name: string): LiteralCommandNode;
     argument<T>(name: string, decorator: (value: string) => T): ArgumentCommandNode<T>;
     execute(commands: string): void;
