@@ -68,6 +68,10 @@ export class CommandNode {
     }
     return false;
   }
+
+  public isLiteral(): boolean {
+    return this instanceof LiteralCommandNode;
+  }
 }
 
 class LiteralCommandNode extends CommandNode {
