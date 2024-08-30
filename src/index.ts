@@ -119,11 +119,11 @@ export class CommandManager {
     this.roots.delete(namespace);
   }
 
-  public literal(name: string): LiteralCommandNode {
+  public static literal(name: string): LiteralCommandNode {
     return new LiteralCommandNode(name);
   }
 
-  public argument<T>(name: string, decorator: (value: string) => T): ArgumentCommandNode<T> {
+  public static argument<T>(name: string, decorator: (value: string) => T): ArgumentCommandNode<T> {
     return new ArgumentCommandNode(name, decorator);
   }
 
