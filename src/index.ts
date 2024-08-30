@@ -16,7 +16,7 @@ export class Arguments {
   };
 }
 
-class CommandNode {
+export class CommandNode {
   public readonly children: CommandNode[] = [];
   public exec: ((...args: any) => void) | undefined = undefined;
 
