@@ -1,6 +1,6 @@
 export interface CommandSource {
-  success: () => void;
-  fail: () => void;
+  success: (msg: string) => void;
+  fail: (msg: string) => void;
   getName: () => string;
 }
 
