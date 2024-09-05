@@ -2,6 +2,7 @@ export interface CommandSource {
   success: (msg: string) => void;
   fail: (msg: string) => void;
   getName: () => string;
+  hasPermission: (permission: string) => boolean;
 }
 
 /**
@@ -54,10 +55,27 @@ export class CommandNode {
   // 子节点数组，用于存储后续的命令节点
   public readonly children: CommandNode[] = [];
   // 命令执行函数，用于在命令被触发时执行相应的操作
-  public exec: ((...args: any) => void) | undefined = undefined;
+  public exec: ((source: CommandSource, ...args: any) => void) | undefined = undefined;
+  public permission: string | undefined = undefined;
 
   // 构造函数，初始化命令节点
   public constructor() {}
+
+  /**
+   * 设置并返回当前命令节点的权限需求
+   *
+   * 此方法用于指定当前命令节点所需的特定权限只有具备该权限的用户才能成功执行此命令节点
+   * 它通过参数接收一个字符串类型的权限标识符，并将其赋值给当前命令节点的permission属性随后，
+   * 其他方法可以检查这个permission属性来判断用户是否有权执行这个命令节点通过返回当前命令节点实例，
+   * 这个方法支持链式调用，允许在一行代码中连续设置多个属性或方法
+   *
+   * @param permission - 要设置的权限标识符，用于限制谁能执行这个命令节点
+   * @returns 返回当前命令节点实例，以支持链式调用
+   */
+  public require(permission: string): CommandNode {
+    this.permission = permission;
+    return this;
+  }
 
   /**
    * 向当前命令节点添加一个后续节点，并返回当前节点
@@ -88,7 +106,7 @@ export class CommandNode {
    * @param exec 执行函数，当命令被触发时会调用此函数
    * @returns {CommandNode} 返回当前的命令节点，以便进行链式调用
    */
-  public execute(exec: (...args: any) => void): CommandNode {
+  public execute(exec: (source: CommandSource, ...args: any) => void): CommandNode {
     // 存储传入的执行函数，以便在命令触发时使用
     this.exec = exec;
     // 返回当前命令节点，支持链式调用
@@ -102,46 +120,55 @@ export class CommandNode {
    * 它支持执行命令或者根据提供的参数更新命令状态
    *
    * @param nodes 命令节点数组，表示待解析的命令
+   * @param source 命令源对象，用于获取执行命令所需的权限和名称
    * @param args 可选参数数组，用于传递给命令执行函数
    * @returns {boolean} 返回布尔值，表示命令是否成功解析和执行
    *
    * @throws 当命令格式无效时抛出错误
    */
-  public parse(nodes: string[], ...args: any): boolean {
+  public parse(nodes: string[], source: CommandSource, ...args: any): boolean {
+    if (this.permission && !source.hasPermission(this.permission)) {
+      source.fail('Permission denied');
+      return false;
+    }
     // 检查命令节点数组是否为空
     if (nodes.length === 0) {
       // 如果存在执行函数，则调用它，并返回成功标志
       if (this.exec) {
-        this.exec(...args);
+        this.exec(source, ...args);
         return true;
       } else {
         // 如果命令为空或无效，则抛出错误
-        throw new Error('Invalid command');
+        source.fail('Invalid command');
+        return false;
       }
     }
     // 从命令节点数组中移除最后一个节点，用于进一步解析
     const nodeStr: string | undefined = nodes.pop();
     // 如果移除节点操作导致节点字符串变为undefined，则命令无效，抛出错误
     if (nodeStr === undefined) {
-      throw new Error('Invalid command');
+      source.fail('Invalid command');
+      return false;
     } else if (this.children.length === 0) {
       // 如果当前节点没有子节点，则命令无效，抛出错误
-      throw new Error('Invalid command');
+      source.fail('Invalid command');
+      return false;
     } else {
       // 遍历所有子节点，尝试匹配并解析当前节点
       for (let child of this.children) {
         // 如果子节点是字面量命令节点且与当前节点字符串匹配，则递归解析剩余节点
         if (child instanceof LiteralCommandNode && child.toString() === nodeStr) {
-          return child.parse(nodes, ...args);
+          return child.parse(nodes, source, ...args);
         }
         // 如果子节点是参数命令节点，则解码节点字符串并添加到参数列表中，然后递归解析剩余节点
         if (child instanceof ArgumentCommandNode) {
           try {
             args.push(child.decode(nodeStr));
-            return child.parse(nodes, ...args);
-          } catch (e) {
+            return child.parse(nodes, source, ...args);
+          } catch (e: any) {
             // 如果解码过程中发生错误，则直接抛出
-            throw e;
+            source.fail(e.message);
+            return false;
           }
         }
       }
@@ -301,13 +328,14 @@ export class CommandManager {
    */
   public execute(source: CommandSource, commands: string): void {
     if (!commands.startsWith(this.prefix)) {
-      throw new Error('Invalid command');
+      source.fail('Invalid command');
+      return;
     }
     commands = commands.substring(this.prefix.length);
     const nodes = commands.split(' ');
     for (let key in this.roots) {
       const root = this.roots.get(key);
-      if (root!.parse(nodes.reverse(), [source])) break;
+      if (root!.parse(nodes.reverse(), source)) break;
     }
   }
 }
