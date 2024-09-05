@@ -1,3 +1,9 @@
+export interface CommandSource {
+  success: () => void;
+  fail: () => void;
+  getName: () => string;
+}
+
 /**
  * Arguments类提供了几个静态函数，用于安全地将字符串转换为布尔值、数字和字符串
  * 每个函数都会对输入进行验证，如果输入不符合期望格式，则会抛出错误
@@ -290,9 +296,10 @@ export class CommandManager {
   /**
    * 执行给定的命令字符串
    * 命令字符串必须以指定的前缀开始，否则抛出错误
+   * @param source 命令执行源，用于获取命令执行所需的信息
    * @param commands 要执行的命令字符串
    */
-  public execute(commands: string): void {
+  public execute(source: CommandSource, commands: string): void {
     if (!commands.startsWith(this.prefix)) {
       throw new Error('Invalid command');
     }
@@ -300,7 +307,7 @@ export class CommandManager {
     const nodes = commands.split(' ');
     for (let key in this.roots) {
       const root = this.roots.get(key);
-      if (root!.parse(nodes.reverse())) break;
+      if (root!.parse(nodes.reverse(), [source])) break;
     }
   }
 }
