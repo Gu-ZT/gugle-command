@@ -333,7 +333,7 @@ export class CommandManager {
     }
     commands = commands.substring(this.prefix.length);
     const nodes = commands.split(' ');
-    for (let key in this.roots) {
+    for (let key of this.roots.keys()) {
       const root = this.roots.get(key);
       if (root!.parse(nodes.reverse(), source)) break;
     }
