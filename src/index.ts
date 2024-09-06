@@ -332,10 +332,9 @@ export class CommandManager {
       return;
     }
     commands = commands.substring(this.prefix.length);
-    const nodes = commands.split(' ');
     for (let key of this.roots.keys()) {
       const root = this.roots.get(key);
-      if (root!.parse(nodes.reverse(), source)) return;
+      if (root!.parse(commands.split(' ').reverse(), source)) return;
     }
     source.fail('Invalid command');
   }
